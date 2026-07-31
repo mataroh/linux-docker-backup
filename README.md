@@ -1,73 +1,80 @@
-# 🐳 Backup de um sistema Linux utilizando Docker
+# 🐳 Backup da pasta Home utilizando Docker
 
-## 📖 Introdução
+Realize o backup da sua pasta **Home** utilizando apenas um container Docker, sem instalar ferramentas adicionais no sistema operacional.
 
-Este projeto demonstra como realizar o backup de um sistema Linux utilizando um container Docker, sem a necessidade de instalar ferramentas adicionais no sistema operacional.
+---
 
-A proposta é utilizar uma imagem Ubuntu temporária para executar o comando `tar`, acessando o sistema de arquivos do host em modo somente leitura e gerando um arquivo compactado contendo os dados do sistema.
+# 📖 Introdução
 
-Essa abordagem é útil para laboratórios, ambientes de desenvolvimento, máquinas pessoais e para compreender como o Docker pode ser utilizado em tarefas administrativas, além da execução de aplicações.
+Este projeto demonstra como utilizar o Docker para executar um backup da pasta `/home` através do utilitário `tar`.
 
-> **Atenção:** Este projeto possui fins educacionais e demonstra uma técnica de backup. Para ambientes de produção, recomenda-se utilizar soluções específicas de backup com suporte a versionamento, retenção, criptografia e restauração automatizada.
+Ao invés de instalar programas de backup diretamente no sistema, utilizamos um container temporário apenas para executar a tarefa, mantendo o ambiente limpo e isolado.
+
+Essa abordagem é ideal para:
+
+* Backup dos arquivos pessoais
+* Laboratórios
+* Ambientes de desenvolvimento
+* Aprender sobre volumes Docker
+* Automatizar backups simples
 
 ---
 
 # ⚙️ Como funciona
 
-O processo ocorre da seguinte forma:
+O Docker cria um container Ubuntu temporário.
 
-1. Um container Ubuntu é iniciado temporariamente.
-2. O sistema de arquivos do host é montado dentro do container em modo somente leitura (`Read Only`).
-3. Uma pasta do host é compartilhada para armazenar o arquivo de backup.
-4. O comando `tar` compacta os arquivos desejados.
-5. O backup é salvo na pasta compartilhada.
-6. Ao finalizar, o container é removido automaticamente.
+Dentro dele, a pasta `/home` do computador é montada como somente leitura (`Read Only`).
 
-Fluxo do processo:
+Em seguida, o utilitário `tar` compacta todo o conteúdo da pasta Home em um único arquivo `.tar.gz`, armazenando-o em uma pasta compartilhada entre o host e o container.
 
-```
-Host Linux
-     │
-     ▼
-Docker cria um container Ubuntu
-     │
-     ▼
-Container acessa os arquivos do host (somente leitura)
-     │
-     ▼
-tar compacta os arquivos
-     │
-     ▼
-Backup salvo em ~/backup
-     │
-     ▼
-Container removido automaticamente
+Ao finalizar, o container é removido automaticamente.
+
+Fluxo:
+
+```text
+/home
+   │
+   ▼
+Docker
+   │
+   ▼
+Container Ubuntu
+   │
+   ▼
+tar
+   │
+   ▼
+backup-home-2026-07-31.tar.gz
 ```
 
 ---
 
 # 📋 Pré-requisitos
 
-Antes de iniciar, é necessário possuir:
-
 * Linux
 * Docker instalado
-* Permissão para executar comandos Docker
-* Espaço suficiente em disco para armazenar o backup
+* Permissão para executar o Docker
 
-Verifique se o Docker está funcionando:
+Verifique se está funcionando:
 
 ```bash
 docker run hello-world
 ```
 
-Caso a mensagem **"Hello from Docker!"** seja exibida, o ambiente está pronto.
+Se aparecer:
+
+```text
+Hello from Docker!
+```
+
+o ambiente está pronto.
 
 ---
 
-# 🚀 Passo 1 – Criando a pasta de destino
+# 🚀 Passo 1 — Criando a pasta de backup
 
-Crie uma pasta onde o arquivo será armazenado.
+Crie uma pasta onde será salvo o arquivo.
 
 ```bash
 mkdir -p ~/backup
@@ -75,90 +82,115 @@ mkdir -p ~/backup
 
 ---
 
-# 🚀 Passo 2 – Executando o backup
+# 🚀 Passo 2 — Executando o backup
 
 Execute o comando abaixo:
 
 ```bash
 docker run --rm \
--v /:/host:ro \
+-v /home:/source:ro \
 -v ~/backup:/backup \
 ubuntu:24.04 \
-bash -c "tar czpf /backup/backup-$(date +%F).tar.gz \
---exclude=/host/proc \
---exclude=/host/sys \
---exclude=/host/dev \
---exclude=/host/run \
---exclude=/host/tmp \
---exclude=/host/mnt \
---exclude=/host/media \
--C /host ."
+bash -c "tar czpf /backup/backup-home-$(date +%F).tar.gz -C /source ."
 ```
 
-### Explicação dos principais parâmetros
+### O que esse comando faz?
 
-| Parâmetro             | Descrição                                                         |
-| --------------------- | ----------------------------------------------------------------- |
-| `--rm`                | Remove o container automaticamente ao finalizar                   |
-| `-v /:/host:ro`       | Compartilha o sistema de arquivos do host em modo somente leitura |
-| `-v ~/backup:/backup` | Compartilha a pasta onde o backup será salvo                      |
-| `ubuntu:24.04`        | Imagem utilizada para executar o processo                         |
-| `tar`                 | Responsável por criar o arquivo compactado                        |
+| Parâmetro             | Função                                              |
+| --------------------- | --------------------------------------------------- |
+| `--rm`                | Remove o container ao finalizar                     |
+| `-v /home:/source:ro` | Compartilha a pasta `/home` em modo somente leitura |
+| `-v ~/backup:/backup` | Pasta onde será salvo o backup                      |
+| `ubuntu:24.04`        | Imagem utilizada                                    |
+| `tar`                 | Compacta todos os arquivos da Home                  |
 
 ---
 
-# 🚀 Passo 3 – Verificando o backup
+# 🚀 Passo 3 — Verificando o backup
 
-Após a conclusão, verifique se o arquivo foi criado.
+Confira se o arquivo foi criado.
 
 ```bash
 ls -lh ~/backup
 ```
 
-O resultado deverá ser semelhante a:
+Resultado esperado:
 
 ```text
-backup-2026-07-31.tar.gz
-```
-
-Também é possível validar o conteúdo do arquivo sem extraí-lo:
-
-```bash
-tar -tzf ~/backup/backup-2026-07-31.tar.gz | head
+backup-home-2026-07-31.tar.gz
 ```
 
 ---
 
-# ✅ Resultado
+# ✅ Validando o backup
 
-Ao final do processo você terá um arquivo compactado contendo o backup do sistema.
+Antes de armazenar o arquivo, verifique se ele pode ser lido.
+
+```bash
+tar -tzf ~/backup/backup-home-2026-07-31.tar.gz | head
+```
 
 Exemplo:
 
+```text
+./
+./henrique/
+./henrique/Documentos/
+./henrique/Downloads/
+./henrique/.bashrc
 ```
-~/backup/
 
-└── backup-2026-07-31.tar.gz
-```
-
-Esse arquivo pode ser armazenado em outro disco, servidor ou serviço de armazenamento em nuvem.
+Se os diretórios forem listados, o backup foi criado corretamente.
 
 ---
 
-# 🔄 Restauração (opcional)
+# 📦 Estrutura do projeto
 
-Para extrair o conteúdo do backup:
-
-```bash
-tar -xzpf backup-2026-07-31.tar.gz
+```text
+docker-home-backup/
+│
+├── README.md
+└── images/
+    ├── hello-world.png
+    ├── backup-running.png
+    ├── backup-created.png
+    └── validate-backup.png
 ```
 
-> **Importante:** Restaurar um backup completo diretamente sobre um sistema operacional em uso pode sobrescrever arquivos existentes. Antes de realizar uma restauração em produção, valide o procedimento em um ambiente de testes e tenha um plano de recuperação.
+---
+
+# 🔄 Restaurando o backup
+
+Crie uma pasta para restaurar os arquivos:
+
+```bash
+mkdir ~/restore
+```
+
+Extraia o conteúdo:
+
+```bash
+tar -xzpf ~/backup/backup-home-2026-07-31.tar.gz -C ~/restore
+```
+
+Todos os arquivos serão restaurados dentro da pasta `restore`, preservando a estrutura original da Home.
+
+---
+
+# 💡 Próximos passos
+
+Algumas melhorias que podem ser implementadas neste projeto:
+
+* Automatizar o backup com um script (`backup.sh`);
+* Agendar execuções utilizando `cron`;
+* Criptografar o arquivo gerado com GPG;
+* Enviar o backup para um NAS ou armazenamento em nuvem;
+* Adicionar logs da execução.
 
 ---
 
 # 📄 Licença
 
-Este projeto é disponibilizado sob a licença MIT.
+Este projeto está licenciado sob a licença MIT.
 
-Sinta-se à vontade para estudar, adaptar e contribuir com melhorias.
+Sinta-se à vontade para utilizar, modificar e compartilhar.
